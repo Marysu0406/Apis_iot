@@ -23,6 +23,7 @@ class ComandoCreate(BaseModel):
     descripcion: Optional[str] = None
 
 class ComandoUpdate(BaseModel):
+    id_vehiculo: int
     nombre: str
     codigo: str
     descripcion: Optional[str] = None
@@ -31,7 +32,7 @@ class ComandoUpdate(BaseModel):
 class MovimientoIndividualRequest(BaseModel):
     id_vehiculo: int
     id_comando: int
-    origen: str = "HTTP-DEV"
+    origen: Optional[str] = "WEB"
 
 # --- DEMO ---
 class DemoCreate(BaseModel):

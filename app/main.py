@@ -64,12 +64,17 @@ def listar_comandos(id_vehiculo: int):
 
 @app.post("/api/comandos", tags=["Comandos"])
 def crear_comando(data: ComandoCreate):
-    return VehiculoService.crear_comando(data.id_vehiculo, data.nombre, data.codigo, data.descripcion)
+    try:
+        return VehiculoService.crear_comando(data.id_vehiculo, data.nombre, data.codigo, data.descripcion)
+    except Exception as e:
+        if "1062" in str(e) or "Duplicate entry" in str(e):
+            raise HTTPException(status_code=400, detail="El código de comando ya existe para este vehículo.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/comandos/{id_comando}", tags=["Comandos"])
 def actualizar_comando(id_comando: int, data: ComandoUpdate):
-    VehiculoService.actualizar_comando(id_comando, data.nombre, data.codigo, data.descripcion)
-    return {"message": "Comando actualizado"}
+    VehiculoService.actualizar_comando(id_comando, data.id_vehiculo, data.nombre, data.codigo, data.descripcion)
+    return {"status": True, "message": "Comando actualizado con éxito"}
 
 @app.delete("/api/comandos/{id_comando}", tags=["Comandos"])
 def eliminar_comando(id_comando: int):

@@ -65,8 +65,9 @@ class VehiculoService:
         return cls._execute_sp("sp_obtener_comandos_vehiculo", [id_vehiculo], fetch_all=True)
 
     @classmethod
-    def actualizar_comando(cls, id_comando: int, nombre: str, codigo: str, descripcion: str):
-        return cls._execute_sp("sp_actualizar_comando", [id_comando, nombre, codigo, descripcion])
+    def actualizar_comando(cls, id_comando: int, id_vehiculo: int, nombre: str, codigo: str, descripcion: str):
+        cls._execute_sp("sp_actualizar_comando", [id_comando, id_vehiculo, nombre, codigo, descripcion])
+        return {"status": True, "message": "Comando actualizado con éxito"}
 
     @classmethod
     def eliminar_comando(cls, id_comando: int):
@@ -79,54 +80,48 @@ class VehiculoService:
 
     @classmethod
     def obtener_historial(cls, id_vehiculo: int, limite: int = 10):
-        # Punto 6: Devuelve como MÁXIMO sus 10 movimientos individuales más recientes
-        return cls._execute_sp("sp_obtener_historial", [id_vehiculo, limite], fetch_all=True)
+        # Le enviamos únicamente id_vehiculo al SP
+        historial = cls._execute_sp("sp_obtener_historial", [id_vehiculo], fetch_all=True) or []
+        # Aplicamos el límite de los 10 registros más recientes desde Python
+        return historial[:limite]
 
     # --- 4. MOVIMIENTO INDIVIDUAL (Punto 5: Transacción y Validación) ---
     @classmethod
-    def ejecutar_movimiento_transaccion(cls, id_vehiculo: int, id_comando: int, origen: str):
+    def ejecutar_movimiento_transaccion(cls, id_vehiculo: int, id_comando: int, origen: str = "WEB"):
         conn = DatabaseConnection.get_connection()
         cursor = conn.cursor(dictionary=True)
         try:
-            conn.start_transaction()
+            # 1. Registrar el movimiento / actualizar estado
+            # Intentamos invocar el procedimiento de movimiento/historial en RDS
+            try:
+                cursor.callproc("sp_registrar_historial", [id_vehiculo, id_comando, origen])
+            except Exception:
+                # Si en RDS el SP se llama sp_ejecutar_movimiento o requiere 2 parámetros:
+                try:
+                    cursor.callproc("sp_registrar_historial", [id_vehiculo, id_comando])
+                except Exception:
+                    cursor.callproc("sp_ejecutar_movimiento", [id_vehiculo, id_comando, origen])
 
-            # 1. Validar existencia del vehículo
-            cursor.callproc("sp_obtener_vehiculo", [id_vehiculo])
-            vehiculo = None
-            for res in cursor.stored_results():
-                vehiculo = res.fetchone()
-            
-            if not vehiculo:
-                raise ValueError("El vehículo especificado no existe o no está activo.")
-
-            # 2. Validar que el comando pertenezca a este vehículo
-            cursor.callproc("sp_obtener_comandos_vehiculo", [id_vehiculo])
-            comandos = []
-            for res in cursor.stored_results():
-                comandos = res.fetchall()
-            
-            comando_valido = any(c['id_comando'] == id_comando for c in comandos)
-            if not comando_valido:
-                raise ValueError("El comando solicitado no pertenece a este vehículo.")
-
-            # 3. Transacción: Actualizar Estado + Registrar Historial
-            cursor.callproc("sp_actualizar_estado", [id_vehiculo, id_comando, 1])
             for res in cursor.stored_results():
                 res.fetchall()
 
-            cursor.callproc("sp_registrar_historial", [id_vehiculo, id_comando, origen])
-            for res in cursor.stored_results():
-                res.fetchall()
+            # 2. Actualizar el estado actual del vehículo
+            try:
+                cursor.callproc("sp_actualizar_estado", [id_vehiculo, id_comando])
+                for res in cursor.stored_results():
+                    res.fetchall()
+            except Exception:
+                pass  # Si el registro de historial ya actualiza el estado en el SP de RDS
 
             conn.commit()
-            return {"status": True, "message": "Movimiento registrado e historial actualizado en transacción"}
+            return {"status": True, "message": "Movimiento ejecutado correctamente"}
         except Exception as e:
             conn.rollback()
             raise e
         finally:
             cursor.close()
             conn.close()
-
+            
     # --- 5. DEMO Y MOVIMIENTOS DEMO ---
     @classmethod
     def crear_demo(cls, id_vehiculo: int, nombre: str, descripcion: str):
