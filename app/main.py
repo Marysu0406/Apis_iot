@@ -41,12 +41,14 @@ def obtener_vehiculo(id_vehiculo: int):
 
 @app.post("/api/vehiculos", tags=["Vehículos"])
 def crear_vehiculo(data: VehiculoCreate):
-    return VehiculoService.crear_vehiculo(data.nombre, data.descripcion, data.ip_asignada)
+    return VehiculoService.crear_vehiculo(data.nombre, data.descripcion, data.ip_asignada, data.conectado)
 
 @app.put("/api/vehiculos/{id_vehiculo}", tags=["Vehículos"])
 def actualizar_vehiculo(id_vehiculo: int, data: VehiculoUpdate):
-    VehiculoService.actualizar_vehiculo(id_vehiculo, data.nombre, data.descripcion, data.ip_asignada)
-    return {"message": "Vehículo actualizado"}
+    VehiculoService.actualizar_vehiculo(
+        id_vehiculo, data.nombre, data.descripcion, data.ip_asignada, data.conectado, data.activo
+    )
+    return {"status": True, "message": "Vehículo actualizado con éxito"}
 
 @app.delete("/api/vehiculos/{id_vehiculo}", tags=["Vehículos"])
 def eliminar_vehiculo(id_vehiculo: int):

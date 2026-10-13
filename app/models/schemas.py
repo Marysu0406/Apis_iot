@@ -6,11 +6,14 @@ class VehiculoCreate(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
     ip_asignada: Optional[str] = None
+    conectado: Optional[bool] = False
 
 class VehiculoUpdate(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
     ip_asignada: Optional[str] = None
+    conectado: Optional[bool] = False
+    activo: Optional[bool] = True
 
 # --- COMANDOS ---
 class ComandoCreate(BaseModel):

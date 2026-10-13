@@ -26,10 +26,11 @@ class VehiculoService:
             cursor.close()
             conn.close()
 
-    # --- 1. VEHÍCULOS ---
+        # --- 1. VEHÍCULOS ---
     @classmethod
-    def crear_vehiculo(cls, nombre: str, descripcion: str, ip: str):
-        return cls._execute_sp("sp_crear_vehiculo", [nombre, descripcion, ip], fetch_one=True)
+    def crear_vehiculo(cls, nombre: str, descripcion: str, ip: str, conectado: bool = False):
+        cls._execute_sp("sp_crear_vehiculo", [nombre, descripcion, ip, conectado])
+        return {"status": True, "message": "Vehículo creado con éxito"}
 
     @classmethod
     def obtener_vehiculos(cls):
@@ -37,20 +38,27 @@ class VehiculoService:
 
     @classmethod
     def obtener_vehiculo_por_id(cls, id_vehiculo: int):
-        return cls._execute_sp("sp_obtener_vehiculo", [id_vehiculo], fetch_one=True)
+        vehiculos = cls._execute_sp("sp_obtener_vehiculos", fetch_all=True) or []
+        for v in vehiculos:
+            if v.get("id_vehiculo") == id_vehiculo or v.get("id") == id_vehiculo:
+                return v
+        return None
 
     @classmethod
-    def actualizar_vehiculo(cls, id_vehiculo: int, nombre: str, descripcion: str, ip: str):
-        return cls._execute_sp("sp_actualizar_vehiculo", [id_vehiculo, nombre, descripcion, ip])
+    def actualizar_vehiculo(cls, id_vehiculo: int, nombre: str, descripcion: str, ip: str, conectado: bool = False, activo: bool = True):
+        cls._execute_sp("sp_actualizar_vehiculo", [id_vehiculo, nombre, descripcion, ip, conectado, activo])
+        return {"status": True, "message": "Vehículo actualizado con éxito"}
 
     @classmethod
     def eliminar_vehiculo(cls, id_vehiculo: int):
-        return cls._execute_sp("sp_eliminar_vehiculo", [id_vehiculo])
+        cls._execute_sp("sp_eliminar_vehiculo", [id_vehiculo])
+        return {"status": True, "message": "Vehículo eliminado con éxito"}
 
     # --- 2. COMANDOS ---
     @classmethod
     def crear_comando(cls, id_vehiculo: int, nombre: str, codigo: str, descripcion: str):
-        return cls._execute_sp("sp_crear_comando", [id_vehiculo, nombre, codigo, descripcion], fetch_one=True)
+        cls._execute_sp("sp_crear_comando", [id_vehiculo, nombre, codigo, descripcion])
+        return {"status": True, "message": "Comando creado con éxito"}
 
     @classmethod
     def obtener_comandos_vehiculo(cls, id_vehiculo: int):
@@ -122,7 +130,8 @@ class VehiculoService:
     # --- 5. DEMO Y MOVIMIENTOS DEMO ---
     @classmethod
     def crear_demo(cls, id_vehiculo: int, nombre: str, descripcion: str):
-        return cls._execute_sp("sp_crear_demo", [id_vehiculo, nombre, descripcion], fetch_one=True)
+        cls._execute_sp("sp_crear_demo", [id_vehiculo, nombre, descripcion])
+        return {"status": True, "message": "Demo creada con éxito"}
 
     @classmethod
     def obtener_demos(cls, id_vehiculo: int):
