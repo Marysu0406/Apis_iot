@@ -146,6 +146,9 @@ class VehiculoService:
         # RDS pide exactamente 5 parámetros: [id_demo, id_comando, orden, duracion_ms, pausa_ms]
         cls._execute_sp("sp_agregar_movimiento_demo", [id_demo, id_comando, orden, duracion_ms, pausa_ms])
         return {"status": True, "message": "Movimiento agregado a la demo con éxito"}
+    @classmethod
+    def obtener_movimientos_demo(cls, id_demo: int):
+        return cls._execute_sp("sp_obtener_movimientos_demo", [id_demo], fetch_all=True)
 
     @classmethod
     def actualizar_movimiento_demo(cls, id_movimiento_demo: int, orden: int, duracion_ms: int, pausa_ms: int = 500, id_demo: int = 1, id_comando: int = 1):

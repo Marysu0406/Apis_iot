@@ -16,19 +16,19 @@ app = FastAPI(
 )
 
 # --- WEBSOCKET ---
-@app.websocket("/ws/vehiculos/{id_vehiculo}")
+@app.websocket("/ws/vehiculo/{id_vehiculo}")
 async def websocket_endpoint(websocket: WebSocket, id_vehiculo: int):
-    await manager.connect(websocket, id_vehiculo)
+    # manager.connect ya ejecuta websocket.accept() en su línea 9
+    await manager.connect(websocket)
     try:
-        # Enviar estado inicial
         await websocket.send_json({
             "event": "CONECTADO",
-            "message": f"Conexión establecida para vehículo {id_vehiculo}"
+            "message": f"Conexión exitosa al vehículo {id_vehiculo}"
         })
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket, id_vehiculo)
+        manager.disconnect(websocket)
 
 # ==========================================
 # 1. VEHÍCULOS
@@ -182,5 +182,40 @@ def actualizar_movimiento_demo(id_movimiento_demo: int, data: MovimientoDemoUpda
 def eliminar_movimiento_demo(id_movimiento_demo: int):
     try:
         return VehiculoService.eliminar_movimiento_demo(id_movimiento_demo)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/vehiculos/{id_vehiculo}/demos/{id_demo}/ejecutar", tags=["Demos"])
+async def ejecutar_demo(id_vehiculo: int, id_demo: int):
+    try:
+        movimientos = VehiculoService.obtener_movimientos_demo(id_demo)
+        if not movimientos:
+            raise HTTPException(status_code=404, detail="La demo no tiene movimientos registrados")
+
+        # Notifica el inicio (pasando solo 1 argumento a broadcast)
+        await manager.broadcast({
+            "evento": "DEMO_INICIADA",
+            "id_demo": id_demo,
+            "total_movimientos": len(movimientos)
+        })
+
+        import asyncio
+        for mov in movimientos:
+            await manager.broadcast({
+                "evento": "EJECUTANDO_MOVIMIENTO",
+                "id_comando": mov.get("id_comando"),
+                "orden": mov.get("orden"),
+                "duracion_ms": mov.get("duracion_ms")
+            })
+            duracion = (mov.get("duracion_ms", 1000) + mov.get("pausa_ms", 500)) / 1000.0
+            await asyncio.sleep(duracion)
+
+        # Notifica el fin de la demo
+        await manager.broadcast({
+            "evento": "DEMO_FINALIZADA",
+            "id_demo": id_demo
+        })
+
+        return {"status": True, "message": "Demo ejecutada correctamente"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
