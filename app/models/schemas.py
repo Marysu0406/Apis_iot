@@ -50,9 +50,9 @@ class MovimientoDemoCreate(BaseModel):
     id_comando: int
     orden: int
     duracion_ms: int
-    potencia: int = 100
+    pausa_ms: Optional[int] = 500
 
 class MovimientoDemoUpdate(BaseModel):
     orden: int
     duracion_ms: int
-    potencia: int
+    pausa_ms: Optional[int] = 500

@@ -16,14 +16,19 @@ app = FastAPI(
 )
 
 # --- WEBSOCKET ---
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+@app.websocket("/ws/vehiculos/{id_vehiculo}")
+async def websocket_endpoint(websocket: WebSocket, id_vehiculo: int):
+    await manager.connect(websocket, id_vehiculo)
     try:
+        # Enviar estado inicial
+        await websocket.send_json({
+            "event": "CONECTADO",
+            "message": f"Conexión establecida para vehículo {id_vehiculo}"
+        })
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        manager.disconnect(websocket, id_vehiculo)
 
 # ==========================================
 # 1. VEHÍCULOS
@@ -113,41 +118,69 @@ async def ejecutar_movimiento(req: MovimientoIndividualRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==========================================
-# 4. DEMOS Y MOVIMIENTOS DEMO
+# 4. DEMOS Y MOVIMIENTOS DE DEMO
 # ==========================================
+
 @app.get("/api/vehiculos/{id_vehiculo}/demos", tags=["Demos"])
 def obtener_demos(id_vehiculo: int):
-    return VehiculoService.obtener_demos(id_vehiculo) or []
+    try:
+        return VehiculoService.obtener_demos(id_vehiculo) or []
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/demos", tags=["Demos"])
 def crear_demo(data: DemoCreate):
-    return VehiculoService.crear_demo(data.id_vehiculo, data.nombre, data.descripcion)
+    try:
+        return VehiculoService.crear_demo(data.id_vehiculo, data.nombre, data.descripcion)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.put("/api/demos/{id_demo}", tags=["Demos"])
 def actualizar_demo(id_demo: int, data: DemoUpdate):
-    VehiculoService.actualizar_demo(id_demo, data.nombre, data.descripcion)
-    return {"message": "Demo actualizada"}
+    try:
+        return VehiculoService.actualizar_demo(
+            id_demo, data.nombre, data.descripcion, getattr(data, 'activa', True)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.delete("/api/demos/{id_demo}", tags=["Demos"])
 def eliminar_demo(id_demo: int):
-    VehiculoService.eliminar_demo(id_demo)
-    return {"message": "Demo eliminada"}
+    try:
+        return VehiculoService.eliminar_demo(id_demo)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/demos/{id_demo}/movimientos", tags=["Demos"])
 def obtener_movimientos_demo(id_demo: int):
-    return VehiculoService.obtener_movimientos_demo(id_demo) or []
+    try:
+        return VehiculoService.obtener_movimientos_demo(id_demo) or []
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/demos/movimientos", tags=["Demos"])
 def agregar_movimiento_demo(data: MovimientoDemoCreate):
-    VehiculoService.agregar_movimiento_demo(data.id_demo, data.id_comando, data.orden, data.duracion_ms, data.potencia)
-    return {"message": "Movimiento agregado a la demo"}
+    try:
+        pausa = getattr(data, 'pausa_ms', getattr(data, 'potencia', 500))
+        return VehiculoService.agregar_movimiento_demo(
+            data.id_demo, data.id_comando, data.orden, data.duracion_ms, pausa
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.put("/api/demos/movimientos/{id_movimiento_demo}", tags=["Demos"])
 def actualizar_movimiento_demo(id_movimiento_demo: int, data: MovimientoDemoUpdate):
-    VehiculoService.actualizar_movimiento_demo(id_movimiento_demo, data.orden, data.duracion_ms, data.potencia)
-    return {"message": "Movimiento de demo actualizado"}
+    try:
+        pausa = getattr(data, 'pausa_ms', getattr(data, 'potencia', 500))
+        return VehiculoService.actualizar_movimiento_demo(
+            id_movimiento_demo, data.orden, data.duracion_ms, pausa
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.delete("/api/demos/movimientos/{id_movimiento_demo}", tags=["Demos"])
 def eliminar_movimiento_demo(id_movimiento_demo: int):
-    VehiculoService.eliminar_movimiento_demo(id_movimiento_demo)
-    return {"message": "Movimiento de demo eliminado"}
+    try:
+        return VehiculoService.eliminar_movimiento_demo(id_movimiento_demo)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
